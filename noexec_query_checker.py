@@ -40,7 +40,7 @@ load_dotenv()
 def get_changed_sql_files(base_ref: str = "master") -> list[Path]:
     """Return .sql files changed between *base_ref* and HEAD that still exist."""
     result = subprocess.run(
-        ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
+        ["git", "diff", "--name-only", base_ref],
         capture_output=True,
         text=True,
         check=True,
