@@ -166,6 +166,16 @@ def main() -> None:
                         if err_fh:
                             err_fh.write(f"[FAIL] {sql_path}\n       {message}\n")
                         failed.append(sql_path)
+            print()
+            if failed:
+                summary = f"{len(failed)} file(s) failed:\n" + "".join(f"  {f}\n" for f in failed)
+            else:
+                summary = f"All {len(sql_files)} file(s) passed.\n"
+            print(summary, end="")
+            if all_fh:
+                all_fh.write(f"\n{summary}")
+            if err_fh:
+                err_fh.write(f"\n{summary}")
         finally:
             if all_fh:
                 all_fh.close()
@@ -174,14 +184,8 @@ def main() -> None:
     finally:
         engine.dispose()
 
-    print()
     if failed:
-        print(f"{len(failed)} file(s) failed:")
-        for f in failed:
-            print(f"  {f}")
         sys.exit(1)
-    else:
-        print(f"All {len(sql_files)} file(s) passed.")
 
 
 if __name__ == "__main__":
