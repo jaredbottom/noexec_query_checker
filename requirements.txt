@@ -1,0 +1,5 @@
+sqlalchemy>=2.0
+
+# Uncomment the driver that matches your SQL Server connection string:
+# pyodbc          # mssql+pyodbc://  (recommended; requires ODBC Driver 17/18 for SQL Server)
+# pymssql         # mssql+pymssql://
