@@ -116,7 +116,13 @@ def main() -> None:
     print()
 
     workers = min(len(sql_files), int(os.environ.get("MAX_WORKERS", 8)))
-    engine = create_engine(connection_string, pool_size=workers, max_overflow=0)
+    engine = create_engine(
+        connection_string,
+        pool_size=workers,
+        max_overflow=0,
+        isolation_level="READ UNCOMMITTED",
+        connect_args={"autocommit": True},
+    )
 
     all_results_path = os.environ.get("ALL_RESULTS_FILE")
     errors_path = os.environ.get("ERRORS_FILE")
