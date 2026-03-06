@@ -79,7 +79,8 @@ def check_query(engine, sql_path: Path) -> tuple[Path, bool, str]:
             conn.execute(text(wrapped))
         return (sql_path, True, "OK")
     except Exception as exc:  # noqa: BLE001
-        return (sql_path, False, str(exc))
+        orig = getattr(exc, "orig", exc)
+        return (sql_path, False, str(orig))
 
 
 # ---------------------------------------------------------------------------
