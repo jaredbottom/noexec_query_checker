@@ -16,6 +16,8 @@ Configuration (environment variables):
                             mssql+pyodbc://user:pass@server/db?driver=ODBC+Driver+17+for+SQL+Server
     BASE_REF              Git ref to compare against (default: master)
     MAX_WORKERS           Thread-pool size (default: 8)
+    ALL_RESULTS_FILE      Path to write all results (optional)
+    ERRORS_FILE           Path to write only failing results (optional)
 
 Usage:
     DB_CONNECTION_STRING="mssql+pyodbc://..." python noexec_query_checker.py
@@ -116,18 +118,35 @@ def main() -> None:
     workers = min(len(sql_files), int(os.environ.get("MAX_WORKERS", 8)))
     engine = create_engine(connection_string, pool_size=workers, max_overflow=0)
 
+    all_results_path = os.environ.get("ALL_RESULTS_FILE")
+    errors_path = os.environ.get("ERRORS_FILE")
+
     failed: list[Path] = []
 
     try:
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {pool.submit(check_query, engine, f): f for f in sql_files}
-            for future in as_completed(futures):
-                sql_path, success, message = future.result()
-                status = "PASS" if success else "FAIL"
-                print(f"[{status}] {sql_path}")
-                if not success:
-                    print(f"       {message}")
-                    failed.append(sql_path)
+        all_fh = open(all_results_path, "w", encoding="utf-8") if all_results_path else None  # noqa: SIM115
+        err_fh = open(errors_path, "w", encoding="utf-8") if errors_path else None  # noqa: SIM115
+        try:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = {pool.submit(check_query, engine, f): f for f in sql_files}
+                for future in as_completed(futures):
+                    sql_path, success, message = future.result()
+                    status = "PASS" if success else "FAIL"
+                    print(f"[{status}] {sql_path}")
+                    if all_fh:
+                        all_fh.write(f"[{status}] {sql_path}\n")
+                    if not success:
+                        print(f"       {message}")
+                        if all_fh:
+                            all_fh.write(f"       {message}\n")
+                        if err_fh:
+                            err_fh.write(f"[FAIL] {sql_path}\n       {message}\n")
+                        failed.append(sql_path)
+        finally:
+            if all_fh:
+                all_fh.close()
+            if err_fh:
+                err_fh.close()
     finally:
         engine.dispose()
 
