@@ -14,11 +14,12 @@ side effects.
 Configuration (environment variables):
     DB_CONNECTION_STRING  SQLAlchemy URL, e.g.:
                             mssql+pyodbc://user:pass@server/db?driver=ODBC+Driver+17+for+SQL+Server
+    REPO_PATH             Path to the git repo to diff (default: current directory)
     BASE_REF              Git ref to compare against (default: master)
     MAX_WORKERS           Thread-pool size (default: 8)
 
 Usage:
-    DB_CONNECTION_STRING="mssql+pyodbc://..." python noexec_query_checker.py
+    DB_CONNECTION_STRING="mssql+pyodbc://..." REPO_PATH="/path/to/sql/repo" python noexec_query_checker.py
 """
 
 import os
@@ -37,16 +38,17 @@ load_dotenv()
 # Git helpers
 # ---------------------------------------------------------------------------
 
-def get_changed_sql_files(base_ref: str = "master") -> list[Path]:
+def get_changed_sql_files(base_ref: str = "master", repo_path: Path = Path(".")) -> list[Path]:
     """Return .sql files changed between *base_ref* and HEAD that still exist."""
     result = subprocess.run(
         ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
         capture_output=True,
         text=True,
         check=True,
+        cwd=repo_path,
     )
     paths = [
-        Path(line.strip())
+        repo_path / line.strip()
         for line in result.stdout.splitlines()
         if line.strip().lower().endswith(".sql")
     ]
@@ -83,9 +85,10 @@ def main() -> None:
         sys.exit(1)
 
     base_ref = os.environ.get("BASE_REF", "master")
+    repo_path = Path(os.environ.get("REPO_PATH", ".")).resolve()
 
     try:
-        sql_files = get_changed_sql_files(base_ref)
+        sql_files = get_changed_sql_files(base_ref, repo_path)
     except subprocess.CalledProcessError as exc:
         print(f"Error running git diff: {exc.stderr}", file=sys.stderr)
         sys.exit(1)
