@@ -50,11 +50,22 @@ def get_repo_root() -> Path:
     return Path(result.stdout.strip())
 
 
+def get_current_branch() -> str:
+    """Return the name of the current git branch."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return result.stdout.strip()
+
+
 def get_changed_sql_files(base_ref: str = "master") -> list[Path]:
-    """Return .sql files changed between *base_ref* and HEAD that still exist."""
+    """Return .sql files added or modified between *base_ref* and HEAD."""
     repo_root = get_repo_root()
     result = subprocess.run(
-        ["git", "diff", "--name-only", f"{base_ref}...HEAD"],
+        ["git", "diff", "--diff-filter=AM", "--name-only", f"{base_ref}...HEAD"],
         capture_output=True,
         text=True,
         check=True,
@@ -101,6 +112,7 @@ def main() -> None:
     base_ref = os.environ.get("BASE_REF", "master")
 
     try:
+        source_branch = get_current_branch()
         sql_files = get_changed_sql_files(base_ref)
     except subprocess.CalledProcessError as exc:
         print(f"Error running git diff: {exc.stderr}", file=sys.stderr)
@@ -129,9 +141,15 @@ def main() -> None:
 
     failed: list[Path] = []
 
+    header = f"# source branch: {source_branch} -> {base_ref}\n\n"
+
     try:
         all_fh = open(all_results_path, "w", encoding="utf-8") if all_results_path else None  # noqa: SIM115
         err_fh = open(errors_path, "w", encoding="utf-8") if errors_path else None  # noqa: SIM115
+        if all_fh:
+            all_fh.write(header)
+        if err_fh:
+            err_fh.write(header)
         try:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = {pool.submit(check_query, engine, f): f for f in sql_files}
