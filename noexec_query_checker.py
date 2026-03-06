@@ -74,7 +74,7 @@ def get_changed_sql_files(base_ref: str = "master") -> list[Path]:
 
 def check_query(engine, sql_path: Path) -> tuple[Path, bool, str]:
     """Execute *sql_path* with NOEXEC ON; return (path, success, message)."""
-    sql_text = sql_path.read_text(encoding="utf-8")
+    sql_text = sql_path.read_text(encoding="latin-1")
     wrapped = f"SET NOCOUNT ON;\nSET NOEXEC ON;\n{sql_text}"
     try:
         with engine.connect() as conn:
